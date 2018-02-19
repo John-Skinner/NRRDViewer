@@ -2,34 +2,54 @@
 // Created by John Skinner on 2/11/18.
 //
 
-#include <iostream>
-#include <stdio>
+#include <fstream>
+#include <cstdio>
 
-#include "include/NRRDWriter.h"
-bool NRRDWriter::write(std::string filePath, int dims, int* dimSize, float &originxyz, float &spacing, float &dxdydzVector, float *voxels)
+#include "NRRDWriter.h"
+NRRDWriter::NRRDWriter():m_nrrdFile(NULL)
 {
-    success = openAndWritePrefix(filePath,dims,dimSize,originxyz,spacing,dxdydzVector);
+
+}
+bool NRRDWriter::write(const std::string filePath, const int dims,
+                       const int* dimSize, const float* originxyz, const float* spacing,
+                       const float* dxdydzVector, const float *voxels)
+{
+    bool success = openAndWritePrefix(filePath,dims,dimSize,originxyz,spacing,dxdydzVector);
     if (success)
     {
-        success = writeAndCloseData(dimsSize,voxels);
+        success = writeAndCloseData(dimSize,voxels);
     }
     if (success)
     {
-        m_nrrdFile.close();
+        m_nrrdFile->close();
     }
     return success;
 }
-bool NRRDWriter::openAndWritePrefix(std::string filePath, int dims, int* dimSize,
-                                    float& originxyz, float& spacing, float& dxdydzVector)
+bool NRRDWriter::write(std::string filePath, int dims, int* dimSize, float* originxyz, float* spacing, float* dxdydzVector, short *voxels)
+{
+    bool success = openAndWritePrefix(filePath,dims,dimSize,originxyz,spacing,dxdydzVector);
+    if (success)
+    {
+        success = writeAndCloseData(dimSize,voxels);
+    }
+    if (success)
+    {
+        m_nrrdFile->close();
+    }
+    return success;
+}
+bool NRRDWriter::openAndWritePrefix(const std::string filePath, const int dims, const int* dimSize,
+                                    const float* originxyz, const float* spacing, const float* dxdydzVector)
 {
 
     bool success = false;
     char buff[MAXNRRDLINELENGTH];
-    m_nrrdFile = new ostream();
-    m_nrrdFile->open(filePath,ios::out | ios::app | ios::binary);
+    m_nrrdFile = new std::ofstream();
+    m_nrrdFile->open(filePath,std::ios::out | std::ios::binary | std::ios::trunc);
+
     if (m_nrrdFile->is_open())
     {
-
+        m_nrrdFile->seekp(0);
         success = writeStringForBinary("NRRD0004\n");
         if (success)
         {
@@ -81,7 +101,8 @@ bool NRRDWriter::openAndWritePrefix(std::string filePath, int dims, int* dimSize
         }
         if (success)
         {
-            snprintf(buff,MAXNRRDLINELENGTH,"space origin (%f,%f,%f)\n",originxyz[0],
+            // record 2 new-lines to indicate the start of the data
+            snprintf(buff,MAXNRRDLINELENGTH,"space origin: (%f,%f,%f)\n\n",originxyz[0],
                      originxyz[1],
                      originxyz[2]);
             success = writeStringForBinary(buff);
@@ -91,8 +112,9 @@ bool NRRDWriter::openAndWritePrefix(std::string filePath, int dims, int* dimSize
     {
         return false;
     }
+    return success;
 }
-bool NRRDWriter::writeAndCloseData(int* dimSize,short* voxels)
+bool NRRDWriter::writeAndCloseData(const int* dimSize,const short* voxels)
 {
     for (int iz = 0;iz < dimSize[2];iz++)
     {
@@ -103,20 +125,18 @@ bool NRRDWriter::writeAndCloseData(int* dimSize,short* voxels)
                 float v = (float) ( *(voxels+dimSize[0]*dimSize[1]*iz +
                             dimSize[0]*iy +
                             ix));
-                unsigned char icv[4];
-                icv[0] = ((v >> 24) & 0xFF);
-
-                icv[1] = ((v >> 16) & 0xFF);
-
-                icv[2] = ((v >> 8) & 0xFF);
-
-                icv[3] = (v * 0xFF);
+                char const * icv = reinterpret_cast<char const *>(&v);
                 m_nrrdFile->write(icv,4);
             }
         }
     }
+    if (m_nrrdFile->good())
+    {
+        m_nrrdFile->close();
+    }
+    return m_nrrdFile->good();
 }
-bool NRRDWriter::writeAndCloseData(int* dimSize,float* voxels)
+bool NRRDWriter::writeAndCloseData(const int* dimSize,const float* voxels)
 {
     for (int iz = 0;iz < dimSize[2];iz++)
     {
@@ -127,16 +147,23 @@ bool NRRDWriter::writeAndCloseData(int* dimSize,float* voxels)
                 float v = *(voxels+dimSize[0]*dimSize[1]*iz +
                             dimSize[0]*iy +
                             ix);
-                unsigned char icv[4];
-                icv[0] = ((v >> 24) & 0xFF);
+                char const * icv = reinterpret_cast<char const *>(&v);
 
-                icv[1] = ((v >> 16) & 0xFF);
-
-                icv[2] = ((v >> 8) & 0xFF);
-
-                icv[3] = (v * 0xFF);
                 m_nrrdFile->write(icv,4);
             }
         }
     }
+    if (m_nrrdFile->good())
+    {
+        m_nrrdFile->close();
+    }
+    return m_nrrdFile->good();
+}
+
+bool NRRDWriter::writeStringForBinary(std::string line) {
+    size_t len = line.length();
+    strncpy(t_writeBuffer,line.c_str(),len);
+    m_nrrdFile->write(t_writeBuffer,len);
+    return m_nrrdFile->good();
+
 }
