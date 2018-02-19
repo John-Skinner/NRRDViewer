@@ -3,18 +3,16 @@
 //
 
 #include <fstream>
-#include <cstdio>
-
 #include "NRRDWriter.h"
 NRRDWriter::NRRDWriter():m_nrrdFile(NULL)
 {
 
 }
 bool NRRDWriter::write(const std::string filePath, const int dims,
-                       const int* dimSize, const float* originxyz, const float* spacing,
+                       const int* dimSize, const float* originxyz,
                        const float* dxdydzVector, const float *voxels)
 {
-    bool success = openAndWritePrefix(filePath,dims,dimSize,originxyz,spacing,dxdydzVector);
+    bool success = openAndWritePrefix(filePath,dims,dimSize,originxyz,dxdydzVector);
     if (success)
     {
         success = writeAndCloseData(dimSize,voxels);
@@ -25,9 +23,9 @@ bool NRRDWriter::write(const std::string filePath, const int dims,
     }
     return success;
 }
-bool NRRDWriter::write(std::string filePath, int dims, int* dimSize, float* originxyz, float* spacing, float* dxdydzVector, short *voxels)
+bool NRRDWriter::write(std::string filePath, int dims, int* dimSize, float* originxyz, float* dxdydzVector, short *voxels)
 {
-    bool success = openAndWritePrefix(filePath,dims,dimSize,originxyz,spacing,dxdydzVector);
+    bool success = openAndWritePrefix(filePath,dims,dimSize,originxyz,dxdydzVector);
     if (success)
     {
         success = writeAndCloseData(dimSize,voxels);
@@ -39,10 +37,10 @@ bool NRRDWriter::write(std::string filePath, int dims, int* dimSize, float* orig
     return success;
 }
 bool NRRDWriter::openAndWritePrefix(const std::string filePath, const int dims, const int* dimSize,
-                                    const float* originxyz, const float* spacing, const float* dxdydzVector)
+                                    const float* originxyz,  const float* dxdydzVector)
 {
 
-    bool success = false;
+    bool success;
     char buff[MAXNRRDLINELENGTH];
     m_nrrdFile = new std::ofstream();
     m_nrrdFile->open(filePath,std::ios::out | std::ios::binary | std::ios::trunc);
